@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distorted Location - The Worst Route Finder</title>
+    <link rel="stylesheet" 
+href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js">
+</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .map-controls {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+        
+        input[type="number"], 
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            border-color: #3a1c71;
+            outline: none;
+        }
+        
+        button {
+            background-color: #3a1c71;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2a155a;
+        }
+        
+        .button-secondary {
+            background-color: #d76d77;
+        }
+        
+        .button-secondary:hover {
+            background-color: #c25c66;
+        }
+        
+        #map {
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .info-panels {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .info-panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-heading {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #3a1c71;
+        }
+        
+        .coordinates {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .coordinate-box {
+            flex: 1;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .coordinate-box h4 {
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        .music-controls {
+            margin-top: 15px;
+        }
+        
+        .slider-container {
+            margin-top: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            appearance: none;
+            background: #ddd;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3a1c71;
+            cursor: pointer;
+        }
+        
+        input[type="file"] {
+            margin-top: 10px;
+            padding: 10px 0;
+        }
+        
+        .route-info {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .trip-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 40px;
+            color: #777;
+            border-top: 1px solid #ddd;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3a1c71;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Distorted Location Explorer</h1>
+            <p>Find the worst possible route to the distortion of any location</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="map-controls">
+            <div class="form-container">
+                <div class="form-group">
+                    <label for="latitude">Latitude:</label>
+                    <input type="number" id="latitude" step="0.000001" placeholder="Enter latitude (e.g. 37.7749)" min="-90" max="90">
+                </div>
+                <div class="form-group">
+                    <label for="longitude">Longitude:</label>
+                    <input type="number" id="longitude" step="0.000001" placeholder="Enter longitude (e.g. -122.4194)" min="-180" max="180">
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button id="submit-location">Find Distorted Location</button>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p>Generating the worst possible route...</p>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <script>
+            let map = L.map('map').setView([0, 0], 2);
+    
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+    
+            let markers = [];
+            let routeLines = [];
+    
+            function invertCoordinates(lat, lng) {
+                return { lat: -lat, lng: lng > 0 ? lng - 180 : lng + 180 };
+            }
+    
+            function displayRoutes(waypoints1, waypoints2, randomPoint) {
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+                routeLines.forEach(line => map.removeLayer(line));
+                routeLines = [];
+    
+                waypoints1.forEach((point) => {
+                    let marker = L.marker([point.lat, point.lng]).addTo(map);
+                    markers.push(marker);
+                });
+    
+                waypoints2.forEach((point) => {
+                    let marker = L.marker([point.lat, point.lng]).addTo(map);
+                    markers.push(marker);
+                });
+    
+                let randomMarker = L.marker([randomPoint.lat, randomPoint.lng], { icon: L.divIcon({ className: 'random-marker', html: '🎯' }) }).addTo(map);
+                markers.push(randomMarker);
+    
+                let route1 = L.polyline(waypoints1.map(p => [p.lat, p.lng]), { color: 'red' }).addTo(map);
+                let route2 = L.polyline(waypoints2.map(p => [p.lat, p.lng]), { color: 'blue' }).addTo(map);
+                let route3 = L.polyline([[waypoints1[1].lat, waypoints1[1].lng], [randomPoint.lat, randomPoint.lng]], { color: 'green', dashArray: '5, 5' }).addTo(map);
+                routeLines.push(route1, route2, route3);
+            }
+    
+            document.getElementById('submit-location').addEventListener('click', function () {
+                let lat = parseFloat(document.getElementById('latitude').value);
+                let lng = parseFloat(document.getElementById('longitude').value);
+    
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert('Please enter valid coordinates!');
+                    return;
+                }
+    
+                let inverted = invertCoordinates(lat, lng);
+                let midPoint = { lat: (lat + inverted.lat) / 2, lng: (lng + inverted.lng) / 2 };
+                let randomPoint = { lat: (Math.random() * 180 - 90), lng: (Math.random() * 360 - 180) };
+                let waypoints1 = [{ lat, lng }, midPoint];
+                let waypoints2 = [midPoint, inverted];
+                displayRoutes(waypoints1, waypoints2, randomPoint);
+            });
+            // Event listener for button click
+            document.getElementById('submit-location').addEventListener('click', function() {
+                const lat = parseFloat(document.getElementById('latitude').value);
+                const lng = parseFloat(document.getElementById('longitude').value);
+                
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert('Please enter valid coordinates!');
+                    return;
+                }
+                
+                document.getElementById('loading').style.display = 'block';
+                
+                setTimeout(() => {
+                    const inverted = invertCoordinates(lat, lng);
+                    document.getElementById('original-coords').innerText = `Lat: ${lat}, Lng: ${lng}`;
+                    document.getElementById('inverted-coords').innerText = `Lat: ${inverted.lat}, Lng: ${inverted.lng}`;
+                    
+                    const route = generateWorstRoute({ lat, lng }, inverted);
+                    displayRoute(route);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('route-info').innerText = `Worst route calculated with ${route.length} waypoints.`;
+                }, 2000);
+            });
+        </script>
+
+        <div class="info-panels">
+            <div class="info-panel">
+                <h3 class="panel-heading">Location Information</h3>
+                <div class="coordinates">
+                    <div class="coordinate-box">
+                        <h4>Original Location</h4>
+                        <p id="original-coords">No location set</p>
+                    </div>
+                    <div class="coordinate-box">
+                        <h4>Distorted Location</h4>
+                        <p id="inverted-coords">No location set</p>
+                    </div>
+                </div>                
+                <div class="trip-controls">
+    <button id="start-trip">Start Trip</button>
+    <button id="end-trip" class="button-secondary">End Trip</button>
+</div>
+<script> 
+    document.getElementById("end-trip").addEventListener("click", function() {
+        window.close(); // Closes the current browser tab
+    });
+</script>
+        </div>
+                <div class="info-panel">
+                <h3 class="panel-heading">Background Music</h3>
+                <p>Customize your music for the journey to the other side of the world.</p>
+                
+                <div class="music-controls">
+                    <div class="form-group">
+                        <label for="music-selection">Choose Music:</label>
+                        <select id="music-selection">
+                            <option value="default">Default Journey Music</option>
+                            <option value="ocean">Ocean Sounds</option>
+                            <option value="adventure">Adventure Theme</option>
+                            <option value="mysterious">Mysterious Travels</option>
+                            <option value="upbeat">Upbeat Trip</option>
+                            <option value="happy">Happy Journey</option>  
+                            <option value="sad">Melancholy Mix</option>                  
+                        </select>
+                    </div>
+                    
+                    <div id="custom-music-upload" style="display: none;">
+                        <label for="music-file">Upload Your Music:</label>
+                        <input type="file" id="music-file" accept="audio/*">
+                    </div>
+                    
+                    <div class="form-group slider-container">
+                        <label for="volume">Volume:</label>
+                        <input type="range" id="volume" min="0" max="100" value="50">
+                    </div>
+                    
+                    <div>
+                        <label for="music-status">Status:</label>
+                        <p id="music-status">Music not playing</p>
+                    </div>
+                </div>
+                
+                <audio id="music-player"></audio>
+                
+                <script>
+                    const musicSelection = document.getElementById("music-selection");
+                    musicSelection.addEventListener("change", function () {
+                    let selectedValue = musicSelection.value;
+    
+                    if (selectedValue === "custom" && musicFileInput.files.length > 0) {
+                    let file = URL.createObjectURL(musicFileInput.files[0]);
+                    musicPlayer.src = file;
+                    } else if (musicTracks[selectedValue]) {
+                    musicPlayer.src = musicTracks[selectedValue];
+                    }
+
+    if (musicPlayer.src) {
+        musicPlayer.volume = volumeSlider.value / 100;
+        musicPlayer.play();  // Auto-play when a new selection is made
+        musicStatus.textContent = "Playing: " + musicSelection.options[musicSelection.selectedIndex].text;
+    }
+});
+
+                    const musicFileInput = document.getElementById("music-file");
+                    const musicPlayer = document.getElementById("music-player");
+                    const volumeSlider = document.getElementById("volume");
+                    const musicStatus = document.getElementById("music-status");
+
+                    // Replace with your GitHub repository raw URLs
+                    const githubBaseURL = "https://advitabhat06.github.io/Audios/";
+   
+                    const musicTracks = {
+                    "default": githubBaseURL + "Mzg1ODMxNTIzMzg1ODM3_JzthsfvUY24.MP3",
+                    "ocean": githubBaseURL + "240279-41b0ec36-50ed-42c7-b174-3bf278f7d2b2.mp3",
+                    "adventure": githubBaseURL + "02IWantItThatWay.mp3",
+                    "mysterious": githubBaseURL + "listen-in-peace_lady-gaga-bad-romance.mp3",
+                    "upbeat": githubBaseURL + "Die With A Smile Song Ringtone Download Bruno Mars - MobCup.Com.Co.mp3",
+                    "happy": githubBaseURL + "Somewhere Only We Know_128-(PagalWorld).mp3",
+                    "sad": githubBaseURL + "Espresso-(SambalpuriStar.In).mp3"
+    };               
+                    document.getElementById("start-trip").addEventListener("click", function () {
+                        let selectedValue = musicSelection.value;
+                
+                        if (selectedValue === "custom" && musicFileInput.files.length > 0) {
+                            let file = URL.createObjectURL(musicFileInput.files[0]);
+                            musicPlayer.src = file;
+                        } else if (musicTracks[selectedValue]) {
+                            musicPlayer.src = musicTracks[selectedValue];
+                        }
+                
+                        if (musicPlayer.src) {
+                            musicPlayer.volume = volumeSlider.value / 100;
+                            musicPlayer.play();
+                            musicStatus.textContent = "Playing: " + musicSelection.options[musicSelection.selectedIndex].text;
+                        }
+                    });
+
+                    musicSelection.addEventListener("change", function () {
+                    musicStatus.textContent = "Selected: " + musicSelection.options[musicSelection.selectedIndex].text;
+                    });
+                              
+                    // Adjust volume dynamically
+                    volumeSlider.addEventListener("input", function () {
+                        musicPlayer.volume = this.value / 100;
+                    });
+                </script>
+                
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="container">
+        <p>Distorted Location Explorer &copy; 2025 | The ultimate tool for finding the worst routes</p>
+    </footer>
+</body>
+</html>
